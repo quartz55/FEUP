@@ -1,7 +1,12 @@
+<<<<<<< HEAD
 
 
     int timer_set_square(unsigned long timer, unsigned long freq) {
 
+=======
+int timer_set_square(unsigned long timer, unsigned long freq) {
+
+>>>>>>> origin/master
             unsigned long MSB = (freq & 0xF0);
             unsigned long LSB = (freq & 0x0F);
 
