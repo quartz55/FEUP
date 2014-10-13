@@ -1,5 +1,12 @@
+<<<<<<< HEAD
+
+
+    int timer_set_square(unsigned long timer, unsigned long freq) {
+
+=======
 int timer_set_square(unsigned long timer, unsigned long freq) {
 
+>>>>>>> origin/master
             unsigned long MSB = (freq & 0xF0);
             unsigned long LSB = (freq & 0x0F);
 
@@ -16,7 +23,7 @@ int timer_set_square(unsigned long timer, unsigned long freq) {
             {
                     sys_outb(TIMER_CTRL,TIMER_SEL1|TIMER_LSB_MSB|TIMER_SQR_WAVE);
                     sys_outb(TIMER_1, LSB);
-                    sys_outb(TIMER_1, MSB);
+										sys_outb(TIMER_1, MSB);
                     return 0;
             }
             if (timer == 2)
@@ -35,4 +42,3 @@ int timer_set_square(unsigned long timer, unsigned long freq) {
                     return 1;
             return 0;
     }
-
