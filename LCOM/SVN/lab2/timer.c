@@ -1,7 +1,13 @@
 #include <minix/syslib.h>
 #include <minix/drivers.h>
-
+#include <minix/com.h>
+#include <time.h>
 #include "i8254.h"
+
+static int hook_id;
+static int timer_id = 0;
+int timer_counter;
+
 
 int timer_set_square(unsigned long timer, unsigned long freq) {
 
@@ -51,17 +57,32 @@ int timer_set_square(unsigned long timer, unsigned long freq) {
 
 int timer_subscribe_int(void ) {
 
-  return 1;
+	int hook_id = 1;
+	int res = sys_irqsetpolicy(TIMER0_IRQ,IRQ_REENABLE, &hook_id);
+	if (res != 0) return 1;
+	res = sys_irqenable(&hook_id);
+	if (res != 0) return 2;
+	return 0;
 }
 
 int timer_unsubscribe_int() {
+    hook_id = timer_id;
+    if (sys_irqrmpolicy(&hook_id) != OK)
+        return 1;
+    if (sys_irqdisable(&hook_id) != OK)
+        return 1;
+    return 0;
 
-  return 1;
+	int hook_id = 1;
+	int res = sys_irqrmpolicy(&hook_id);
+	if (res != 0) return 1;
+	return 0;
 }
 
 void timer_int_handler() {
-
+	printf("TIMER 0 interrupt\n");
 }
+
 
 int timer_get_conf(unsigned long timer, unsigned char *st) {
 
@@ -130,7 +151,56 @@ int timer_test_square(unsigned long freq) {
 
 int timer_test_int(unsigned long time) {
 
-  return 1;
+	printf("start\n");
+
+	int ipc_status, r, res, x=1000000000;
+	message msg;
+	//time_t start = time(NULL); //do_time()?
+
+        if ((r = driver_receive(ANY, &msg, &ipc_status) != 0)) {
+            printf("driver_receive failed with: %d", r);
+            continue;
+        }
+        if (is_ipc_notify(ipc_status)) {
+            switch (_ENDPOINT_P(msg.m_source)) {
+                case HARDWARE:
+                    if (msg.NOTIFY_ARG & irq_set) {
+                        timer_int_handler();
+                        if (timer_counter % 60 == 0)
+                            printf("Interrupt\n");
+                    }
+                    break;
+                default:
+                    break;
+            }
+        } else {
+
+	while( x ) { /* Tests if time's up */ /*(time(NULL) - start) <= time*/
+		/* Get a request message. */
+		if (r = driver_receive(ANY, &msg, &ipc_status) != 0 ) {
+			printf("driver_receive failed with: %d", r);
+			continue;
+		}
+		if (is_ipc_notify(ipc_status)) { /* received notification */
+			switch (_ENDPOINT_P(msg.m_source)){
+			case HARDWARE: /* hardware interrupt notification */
+				if (msg.NOTIFY_ARG & 0x1) { /* subscribed interrupt */
+					timer_int_handler();
+				}
+				break;
+			default:
+				break; /* no other notifications expected: do nothing */
+			}
+		} else { /* received a standard message, not a notification */
+			/* no standard messages expected: do nothing */
+		}
+		x--;
+		//printf("one iteration\n");
+	}
+	res = timer_unsubscribe_int();
+	if (res != 0) return 2;
+
+	return 0;
 }
 
 int timer_test_config(unsigned long timer) {
@@ -140,10 +210,10 @@ int timer_test_config(unsigned long timer) {
   unsigned char st;
   int res;
   res = timer_get_conf(timer, &st);
-  if (res != 0) return 1;
+  if (res != 0) return 2;
 
   res = timer_display_conf(st);
-  if (res != 0) return 1;
+  if (res != 0) return 3;
 
   return 0;
 }
